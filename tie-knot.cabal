@@ -1,0 +1,21 @@
+Name:                tie-knot
+Version:             0.1
+Description:         "Ties the knot" on a given set of structures that reference each other by keys - replaces the keys with their respective values.
+License:             LGPL
+--License-file:        LICENSE
+Author:              Petr Pudlák
+Copyright:           (c) 2012 Petr Pudlák
+Maintainer:          petr.mvd@gmail.com
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+Stability:           Experimental
+Bug-reports:         https://github.com/ppetr/tie-knot/issues
+
+Source-repository head
+  type:     git
+  location: git://github.com/ppetr/tie-knot.git
+
+Library
+  Build-Depends:     base, fixpoint, containers >= 0.4, mtl >= 2
+  Exposed-Modules:   Data.Knot
+  ghc-options:       -O2
