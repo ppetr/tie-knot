@@ -3,6 +3,39 @@
 -- | Module for tying the knot on data structures that reference each other by
 -- some kind of keys. The 'tie' function replaces all such references with the actual
 -- value, creating possibly recursive or cyclic data structures.
+--
+-- The module re-exports a part of the fixpoint package.
+--
+-- An example how to construct a structure with circular dependencies:
+--
+-- > data Person = Person { name :: String, loves :: [Person] }
+-- > -- Define a variant of Person where the recursive type
+-- > -- is given as a parameter, and injection/projection functions.
+-- > instance Fixpoint Person where
+-- >   data Pre Person t = Loves { _name :: String, _loves :: [t] }
+-- >   inject ~(Loves n ps)    = Person n ps
+-- >   project ~(Person n ps)  = Loves n ps
+-- >
+-- > -- The easisest way to get 'Foldable' + 'Functor' is to implement
+-- > -- 'Traversable' and then just use the default implementations.
+-- > instance T.Traversable (Pre Person) where
+-- >     traverse f (Loves n ns) = Loves n <$> T.traverse f ns
+-- >
+-- > instance Functor (Pre Person) where
+-- >     fmap = T.fmapDefault
+-- > instance F.Foldable (Pre Person) where
+-- >     foldMap = T.foldMapDefault
+-- >
+-- > -- Let's create a person with cicrular dependencies:
+-- > alice :: Person
+-- > alice = fromJust . Map.lookup "Alice" .
+-- >             tie' . Map.fromList . map (\l -> (_name l, l)) $ lst
+-- >   where
+-- >     lst = [ Loves "Alice" ["Bob", "cat"]
+-- >           , Loves "Bob"   ["Alice"]
+-- >           -- you may disagree, but the cat thinks of itself as Person
+-- >           , Loves "cat"   ["cat"]
+-- >           ]
 module Data.Knot (tie, tie', isConsistent, RefMap, TieError(..), Fixpoint, Pre, inject, project) where
 
 import Control.Monad
@@ -30,7 +63,7 @@ data TieError k
 isConsistent :: (Ord k, F.Foldable v, Functor v)
     => RefMap k v                           -- ^ The loader to check.
     -> Either (TieError k) (RefMap k v)     -- ^ The loader argument or an error.
-isConsistent l = maybe (Right l) Left . getFirst $ 
+isConsistent l = maybe (Right l) Left . getFirst $
         Map.foldrWithKey (\k -> mappend . keysOk k) mempty l
   where
     keysOk k = F.foldMap (\r -> First $ if (Map.member r l)
@@ -38,7 +71,7 @@ isConsistent l = maybe (Right l) Left . getFirst $
                                                      else (Just (MissingKey k r)) )
 
 -- | Helper function for anamorphisms.
-ana' :: Fixpoint t => (s -> Pre t s) -> Pre t s -> t 
+ana' :: Fixpoint t => (s -> Pre t s) -> Pre t s -> t
 ana' f = inject . fmap (ana f)
 
 -- | Ties the knot without checking consistency.
