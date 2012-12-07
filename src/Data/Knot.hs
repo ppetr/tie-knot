@@ -1,3 +1,20 @@
+{-
+    This file is part of tie-knot.
+
+    tie-knot is free software: you can redistribute it and/or modify it under
+    the terms of the GNU Lesser General Public License as published by the Free
+    Software Foundation, either version 3 of the License, or (at your option)
+    any later version.
+
+    tie-knot is distributed in the hope that it will be useful, but WITHOUT ANY
+    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+    FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public License for
+    more details.
+
+    You should have received a copy of the GNU Lesser General Public License
+    along with tie-knot.  If not, see <http://www.gnu.org/licenses/>.
+-}
+
 {-# LANGUAGE TypeFamilies, FlexibleContexts, FlexibleInstances #-}
 
 -- | Module for tying the knot on data structures that reference each other by

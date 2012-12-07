@@ -2,7 +2,7 @@ Name:                tie-knot
 Version:             0.1
 Description:         "Ties the knot" on a given set of structures that reference each other by keys - replaces the keys with their respective values.
 License:             LGPL
---License-file:        LICENSE
+License-file:        COPYING.LESSER
 Author:              Petr Pudlák
 Copyright:           (c) 2012 Petr Pudlák
 Maintainer:          petr.mvd@gmail.com
