@@ -1,13 +1,20 @@
 Name:                tie-knot
 Version:             0.1
-Description:         "Ties the knot" on a given set of structures that reference each other by keys - replaces the keys with their respective values.
+Synopsis:
+    "Ties the knot" on a given set of structures that reference each other by
+    keys.
+Description:
+    "Ties the knot" on a given set of structures that reference each other by
+    keys - replaces the keys with their respective values. Takes @Map k (v k)@
+    and converts into @Map k v'@ where @v'@ is the fixed point of @v@.
+Category:            Data Structures
 License:             LGPL
 License-file:        COPYING.LESSER
 Author:              Petr Pudlák
 Copyright:           (c) 2012 Petr Pudlák
 Maintainer:          petr.mvd@gmail.com
 Build-Type:          Simple
-Cabal-Version:       >=1.2
+Cabal-Version:       >=1.6
 Stability:           Experimental
 Bug-reports:         https://github.com/ppetr/tie-knot/issues
 
