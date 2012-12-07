@@ -2,7 +2,7 @@
 
 "Ties the knot" on a given set of structures that reference each other by keys
 - replaces the keys with their respective values.  Takes `Map k (v k)` and
-converts into `Map k v'` where v' is the fixed point of `v`.
+converts into `Map k v'` where `v'` is the fixed point of `v`.
 
 This is accomplished by functions
 ```haskell
@@ -27,31 +27,31 @@ a data structure which would contain these cyclic dependencies:
 data Person = Person { name :: String, loves :: [Person] }
 
 -- Define a variant of Person where the recursive type
--- is given as a parameter, and injection/projection functions.
-instance Fixpoint Person where
-  data Pre Person t = Loves { _name :: String, _loves :: [t] }
-  inject ~(Loves n ps)    = Person n ps
-  project ~(Person n ps)  = Loves n ps
+-- is given as a parameter and the embedding function.
+
+data Person' t = Person' { _name :: String, _loves :: [t] }
+type instance Base Person = Person'
+instance Unfoldable Person where
+  embed ~(Person' n ps)    = Person n ps
 
 -- The easisest way to get 'Foldable' + 'Functor' is to implement
 -- 'Traversable' and then just use the default implementations.
-instance T.Traversable (Pre Person) where
-    traverse f (Loves n ns) = Loves n <$> T.traverse f ns
-instance Functor (Pre Person) where
+instance T.Traversable Person' where
+    traverse f (Person' n ns) = Person' n <$> T.traverse f ns
+instance Functor Person' where
     fmap = T.fmapDefault
-instance F.Foldable (Pre Person) where
+instance F.Foldable Person' where
     foldMap = T.foldMapDefault
--- (Alternatively we could have used GHC's DeriveTraversable extension.)
 
--- Let's create a representaion of Alice with cicrular dependencies:
+-- Let's create a person with cicrular dependencies:
 alice :: Person
-alice = fromJust . Map.lookup "Alice" .
+alice = fromJust . Map.lookup "Alice" . 
             tie' . Map.fromList . map nameValue $ lst
   where
-    lst = [ Loves "Alice" ["Bob", "cat"]
-          , Loves "Bob"   ["Alice"]
+    lst = [ Person' "Alice" ["Bob", "cat"]
+          , Person' "Bob"   ["Alice"]
           -- you may disagree, but the cat thinks of itself as Person
-          , Loves "cat"   ["cat"]
+          , Person' "cat"   ["cat"]
           ]
     nameValue loves = (_name loves, loves)
 ```
@@ -71,21 +71,22 @@ We can accomplish this using tie-knot by simply numbering the fields of a list
 and then letting the library to tie the knot:
 
 ```haskell
-instance Fixpoint (DList a) where
-  data Pre (DList a) t = DLNode' t a t
-  inject ~(DLNode' u x v) = DLNode u x v
-  project ~(DLNode u x v) = DLNode' u x v
-instance Functor (Pre (DList a)) where
-    fmap = T.fmapDefault
-instance T.Traversable (Pre (DList n)) where
-    traverse f (DLNode' u n v) = DLNode' <$> f u <*> pure n <*> f v
-instance F.Foldable (Pre (DList n)) where
-    foldMap = T.foldMapDefault
+data DList' a t = DLNode' t a t
+type instance Base (DList a) = DList' a
+instance Unfoldable (DList a) where
+  embed ~(DLNode' u x v) = DLNode u x v
 
+instance Functor (DList' n) where
+    fmap = T.fmapDefault
+instance T.Traversable (DList' n) where
+    traverse f (DLNode' u n v) = DLNode' <$> f u <*> pure n <*> f v
+instance F.Foldable (DList' n) where
+    foldMap = T.foldMapDefault
+ 
 mkDList :: [a] -> DList a
-mkDList xs = fromJust . Map.lookup 0 . tie' $ dict
+mkDList xs =fromJust . Map.lookup 0 . tie' $ dict
   where
-    dict = Map.fromList
+    dict = Map.fromList 
             . map (\(i, x) -> (i, DLNode' (pre i) x (nxt i)))
             . zip [0..] $ xs
     n = length xs
