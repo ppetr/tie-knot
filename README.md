@@ -1,18 +1,20 @@
 # tie-knot
 
 "Ties the knot" on a given set of structures that reference each other by keys
-- replaces the keys with their respective values.  Takes `Map k (v k)` and
+ - replaces the keys with their respective values.  Takes `Map k (v k)` and
 converts into `Map k v'` where `v'` is the fixed point of `v`.
 
 This is accomplished by functions
 ```haskell
 type RefMap k v = Map k (v k)
 
-tie  :: (Ord k, F.Foldable (Pre v), Fixpoint v) => RefMap k (Pre v) -> Either (TieError k) (Map k v)
-tie' :: (Ord k, Fixpoint v) => RefMap k (Pre v) -> Map k v
+tie :: (Ord k, F.Foldable (Base v), Unfoldable v)
+    => RefMap k (Base v) -> Either (TieError k) (Map k v)
+tie' :: (Ord k, Unfoldable v)
+    => RefMap k (Base v) -> Map k v
 ```
-One performs consistency checking, the other just ends with an error if a key
-is missing in the map.
+The first variant performs consistency checking (this is why it needs
+`Foldable`), the other just fails with an error if a key is missing in the map.
 
 ## Examples:
 
