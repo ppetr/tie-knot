@@ -19,6 +19,7 @@ Cabal-Version:       >=1.10
 Stability:           Experimental
 Homepage:            https://github.com/ppetr/tie-knot
 Bug-reports:         https://github.com/ppetr/tie-knot/issues
+Extra-Source-Files:  README.md, COPYING, COPYING.LESSER
 
 Source-repository head
   type:     git
