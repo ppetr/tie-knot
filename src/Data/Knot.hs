@@ -15,7 +15,7 @@
     along with tie-knot.  If not, see <http://www.gnu.org/licenses/>.
 -}
 
-{-# LANGUAGE TypeFamilies, FlexibleContexts, FlexibleInstances #-}
+{-# LANGUAGE TypeFamilies, FunctionalDependencies, FlexibleContexts, FlexibleInstances #-}
 
 -- | Module for tying the knot on data structures that reference each other by
 -- some kind of keys. The 'tie' function replaces all such references with the actual
@@ -53,52 +53,95 @@
 -- >           -- you may disagree, but the cat thinks of itself as Person
 -- >           , Loves "cat"   ["cat"]
 -- >           ]
-module Data.Knot (tie, tie', isConsistent, RefMap, TieError(..), Base, Unfoldable, embed) where
+module Data.Knot (
+    -- classes
+    KeyLookup(..),
+    -- functions
+    tie, tie', isConsistent,
+    -- Map specializations
+    tieMap, tieMap',
+    -- Error reporting
+    TieError(..), TieErrors,
+    -- re-exports
+    Base, Unfoldable(embed))
+where
 
+import Prelude hiding (lookup)
 import Control.Monad
 import Control.Monad.Error
 import qualified Data.Foldable as F
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import Data.Monoid
 import Data.Maybe
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 import Data.Functor.Foldable
 
--- | Represents a set of data 'v' that reference each other
--- using keys of type 'k'.
-type RefMap k v = Map k (v k)
+
+class Functor map => KeyLookup k map | map -> k where
+    lookupKey :: k -> map u -> Maybe u
+
+instance Ord k => KeyLookup k (Map k) where
+    lookupKey = Map.lookup
+instance KeyLookup k ((->) k) where
+    lookupKey k f = Just (f k)
+instance KeyLookup Int IntMap.IntMap where
+    lookupKey = IntMap.lookup
 
 -- | Possible errors when tying the knot.
-data TieError k
-    = MissingKey k k    -- ^ A value with key k1 referenced non-existent key k2.
+data TieError k v
+    = MissingKey (v k) k    -- ^ Value @v@ referenced non-existent key @k@.
   deriving (Show, Eq, Ord)
+type TieErrors k v = Seq (TieError k v)
 
 -- | Check the loader for consistency, i.e. if all referenced keys
--- have a corresponding value. Values need to implement 'Foldable'
--- that traverses over all referenced keys.
-isConsistent :: (Ord k, F.Foldable v, Functor v)
-    => RefMap k v                           -- ^ The loader to check.
-    -> Either (TieError k) (RefMap k v)     -- ^ The loader argument or an error.
-isConsistent l = maybe (Right l) Left . getFirst $
-        Map.foldrWithKey (\k -> mappend . keysOk k) mempty l
+-- have a corresponding value. Values must to implement 'Foldable'
+-- that traverses over all referenced keys. Similarly, the 'KeyLookup' instance
+-- must implement 'Foldable'.
+isConsistent :: (Functor v, F.Foldable v, KeyLookup k map, F.Foldable map)
+    => map (v k)                          -- ^ The structure to check.
+    -> Either (Seq (TieError k v)) (map (v k)) -- ^ The structure (checked to be correct) or a non-empty sequence of errors.
+isConsistent l = if Seq.null errors
+                    then Right l
+                    else Left errors
   where
-    keysOk k = F.foldMap (\r -> First $ if (Map.member r l)
-                                                     then Nothing
-                                                     else (Just (MissingKey k r)) )
+    errors = F.foldMap keysOk l
+    keysOk v = F.foldMap checkKey v
+      where
+        checkKey r = case lookupKey r l of
+                        Nothing     -> Seq.singleton (MissingKey v r)
+                        _           -> mempty
 
 -- | Helper function for anamorphisms.
-ana' :: Unfoldable t => (s -> Base t s) -> Base t s -> t
+ana' :: Unfoldable t
+     => (s -> Base t s)
+     -> Base t s -> t
 ana' f = embed . fmap (ana f)
 
 -- | Ties the knot without checking consistency.
 -- If the references are inconsistent, an exception is raised.
-tie' :: (Ord k, Unfoldable v) => RefMap k (Base v) -> Map k v
-tie' m = Map.map f m
-  where
-    -- (k -> v k) -> v k -> Fix v
-    f = ana' $ \k -> fromJust (Map.lookup k m)
+tie' :: (Unfoldable v, KeyLookup k map)
+     => map (Base v k)
+     -> map v
+tie' m = fmap (ana' $ \k -> maybe (error "Missing key when tying the knot") id $ lookupKey k m) m
+
+-- | Specialization of 'tie'' to 'Map's.
+tieMap' :: (Ord k, Unfoldable v)
+        => Map k (Base v k)
+        -> Map k v
+tieMap' = tie'
 
 -- | Checks consistency by calling 'isConsistent' and then and ties the knot using 'tie''.
-tie :: (Ord k, F.Foldable (Base v), Unfoldable v) => RefMap k (Base v) -> Either (TieError k) (Map k v)
+tie :: (F.Foldable (Base v), Unfoldable v, KeyLookup k map, F.Foldable map)
+    => map (Base v k)
+    -> Either (TieErrors k (Base v)) (map v)
 tie = liftM tie' . isConsistent
+
+-- | Specialization of 'tie' to 'Map's.
+tieMap :: (Ord k, F.Foldable (Base v), Unfoldable v)
+       => Map k (Base v k)
+       -> Either (TieErrors k (Base v)) (Map k v)
+tieMap = tie

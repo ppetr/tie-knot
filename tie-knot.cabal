@@ -1,5 +1,5 @@
 Name:                tie-knot
-Version:             0.2
+Version:             0.3
 Synopsis:
     "Ties the knot" on a given set of structures that reference each other by
     keys.
