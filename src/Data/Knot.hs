@@ -15,8 +15,6 @@
     along with tie-knot.  If not, see <http://www.gnu.org/licenses/>.
 -}
 
-{-# LANGUAGE TypeFamilies, FunctionalDependencies, FlexibleContexts, FlexibleInstances #-}
-
 -- | Module for tying the knot on data structures that reference each other by
 -- some kind of keys. The 'tie' function replaces all such references with the actual
 -- value, creating possibly recursive or cyclic data structures.
@@ -55,7 +53,7 @@
 -- >           ]
 module Data.Knot (
     -- classes
-    KeyLookup(..),
+    Lookup(..),
     -- functions
     tie, tie', isConsistent,
     -- Map specializations
@@ -63,8 +61,8 @@ module Data.Knot (
     -- Error reporting
     TieError(..), TieErrors,
     -- re-exports
-    Base, Unfoldable(embed))
-where
+    Base, Unfoldable(embed)
+) where
 
 import Prelude hiding (lookup)
 import Control.Monad
@@ -81,14 +79,18 @@ import qualified Data.Sequence as Seq
 import Data.Functor.Foldable
 
 
-class Functor map => KeyLookup k map | map -> k where
-    lookupKey :: k -> map u -> Maybe u
+class Functor map => Lookup map where
+    type LookupKey map :: *
+    lookupKey :: LookupKey map -> map u -> Maybe u
 
-instance Ord k => KeyLookup k (Map k) where
+instance Ord k => Lookup (Map k) where
+    type LookupKey (Map k) = k
     lookupKey = Map.lookup
-instance KeyLookup k ((->) k) where
+instance Lookup ((->) k) where
+    type LookupKey ((->) k) = k
     lookupKey k f = Just (f k)
-instance KeyLookup Int IntMap.IntMap where
+instance Lookup IntMap.IntMap where
+    type LookupKey IntMap.IntMap = Int
     lookupKey = IntMap.lookup
 
 -- | Possible errors when tying the knot.
@@ -99,11 +101,13 @@ type TieErrors k v = Seq (TieError k v)
 
 -- | Check the loader for consistency, i.e. if all referenced keys
 -- have a corresponding value. Values must to implement 'Foldable'
--- that traverses over all referenced keys. Similarly, the 'KeyLookup' instance
+-- that traverses over all referenced keys. Similarly, the 'Lookup' instance
 -- must implement 'Foldable'.
-isConsistent :: (Functor v, F.Foldable v, KeyLookup k map, F.Foldable map)
-    => map (v k)                          -- ^ The structure to check.
-    -> Either (Seq (TieError k v)) (map (v k)) -- ^ The structure (checked to be correct) or a non-empty sequence of errors.
+isConsistent :: (Functor v, F.Foldable v, Lookup map, F.Foldable map, k ~ LookupKey map)
+    => map (v k)
+        -- ^ The structure to check.
+    -> Either (Seq (TieError k v)) (map (v k))
+        -- ^ The structure (checked to be correct) or a non-empty sequence of errors.
 isConsistent l = if Seq.null errors
                     then Right l
                     else Left errors
@@ -123,7 +127,7 @@ ana' f = embed . fmap (ana f)
 
 -- | Ties the knot without checking consistency.
 -- If the references are inconsistent, an exception is raised.
-tie' :: (Unfoldable v, KeyLookup k map)
+tie' :: (Unfoldable v, Lookup map, k ~ LookupKey map)
      => map (Base v k)
      -> map v
 tie' m = fmap (ana' $ \k -> maybe (error "Missing key when tying the knot") id $ lookupKey k m) m
@@ -135,7 +139,7 @@ tieMap' :: (Ord k, Unfoldable v)
 tieMap' = tie'
 
 -- | Checks consistency by calling 'isConsistent' and then and ties the knot using 'tie''.
-tie :: (F.Foldable (Base v), Unfoldable v, KeyLookup k map, F.Foldable map)
+tie :: (F.Foldable (Base v), Unfoldable v, Lookup map, k ~ LookupKey map, F.Foldable map)
     => map (Base v k)
     -> Either (TieErrors k (Base v)) (map v)
 tie = liftM tie' . isConsistent
