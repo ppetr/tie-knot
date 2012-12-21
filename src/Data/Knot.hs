@@ -68,7 +68,6 @@ where
 
 import Prelude hiding (lookup)
 import Control.Monad
-import Control.Monad.Error
 import qualified Data.Foldable as F
 import Data.Map (Map)
 import qualified Data.Map as Map
