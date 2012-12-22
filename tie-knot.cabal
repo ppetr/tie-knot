@@ -36,7 +36,7 @@ Test-Suite basic-test
     Type:               exitcode-stdio-1.0
     --Build-Depends:  base == 4.*, recursion-schemes == 3.*, containers >= 0.4, mtl >= 2
     Main-Is:            BasicTests.hs
-    Build-Depends:      base == 4.*, containers >= 0.4 , tie-knot == 0.3
+    Build-Depends:      base == 4.*, containers >= 0.4 , tie-knot == 0.3.1
     hs-source-dirs:     src-test
 --  ghc-options:        -O2
     Default-Language:   Haskell98
